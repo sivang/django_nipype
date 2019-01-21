@@ -21,3 +21,7 @@ class BetResults(NodeResults):
     run = models.ForeignKey(
         "django_nipype.BetRun", on_delete=models.PROTECT, related_name="results"
     )
+
+    class Meta:
+        verbose_name_plural = "Results"
+
