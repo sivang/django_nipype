@@ -16,14 +16,31 @@ class BetConfiguration(NodeConfiguration):
         "threshold_segmented": "threshold",
     }
 
-    MUTUALLY_EXCLUSIVE = [
-        "robust",
-        "padding",
-        "remove_eyes",
-        "surfaces",
-        "functional",
-        "reduce_bias",
-    ]
+    # Mode configuration choices
+    ROBUST = "ROBU"
+    PADDING = "PADD"
+    REMOVE_EYES = "REMO"
+    SURFACES = "SURF"
+    FUNCTIONAL = "FUNC"
+    REDUCE_BIAS = "REDU"
+    MODE_CHOICES = (
+        (None, "Normal"),
+        (ROBUST, "Robust"),
+        (PADDING, "Padding"),
+        (REMOVE_EYES, "Remove Eyes"),
+        (SURFACES, "Surfaces"),
+        (FUNCTIONAL, "Functional"),
+        (REDUCE_BIAS, "Reduce Bias"),
+    )
+
+    # MUTUALLY_EXCLUSIVE = [
+    #     "robust",
+    #     "padding",
+    #     "remove_eyes",
+    #     "surfaces",
+    #     "functional",
+    #     "reduce_bias",
+    # ]
 
     # Skull stripping configuration
     fractional_intensity_threshold = models.FloatField(
@@ -63,51 +80,53 @@ class BetConfiguration(NodeConfiguration):
     )
 
     # Modes
-    robust = models.BooleanField(
-        default=False,
-        help_text="Robust brain center estimation (iterates BET several times)",
-    )
-    padding = models.BooleanField(
-        default=False,
-        help_text="Improve BET estimation if Field of View (FOV) is very small in Z (by temporarily padding end slices)",
-    )
-    remove_eyes = models.BooleanField(
-        default=False, help_text="Remove eye and optic nerve"
-    )
-    surfaces = models.BooleanField(
-        default=False,
-        help_text="Run bet2 and then betsurf to get addiotional skull and scalp surfaces (includes registration)",
-    )
-    # Skipped t2_guided option
-    functional = models.BooleanField(default=False, help_text="Apply to 4D fMRI data")
-    reduce_bias = models.BooleanField(
-        default=False, help_text="Bias field and neck cleanup"
-    )
+    mode = models.CharField(max_length=4, choices=MODE_CHOICES)
+    # robust = models.BooleanField(
+    #     default=False,
+    #     help_text="Robust brain center estimation (iterates BET several times)",
+    # )
+    # padding = models.BooleanField(
+    #     default=False,
+    #     help_text="Improve BET estimation if Field of View (FOV) is very small in Z (by temporarily padding end slices)",
+    # )
+    # remove_eyes = models.BooleanField(
+    #     default=False, help_text="Remove eye and optic nerve"
+    # )
+    # surfaces = models.BooleanField(
+    #     default=False,
+    #     help_text="Run bet2 and then betsurf to get addiotional skull and scalp surfaces (includes registration)",
+    # )
+    # # Skipped t2_guided option
+    # functional = models.BooleanField(default=False, help_text="Apply to 4D fMRI data")
+    # reduce_bias = models.BooleanField(
+    #     default=False, help_text="Bias field and neck cleanup"
+    # )
 
     class Meta:
         verbose_name_plural = "Configurations"
 
-    def validate_mutually_exclusive(self, **kwargs):
-        selected = [kwargs.get(mode, True) for mode in self.MUTUALLY_EXCLUSIVE]
-        if sum(selected) > 1:
-            return False
-        return True
+    # def validate_mutually_exclusive(self, **kwargs):
+    #     selected = [kwargs.get(mode, True) for mode in self.MUTUALLY_EXCLUSIVE]
+    #     if sum(selected) > 1:
+    #         return False
+    #     return True
 
-    def save(self, *args, **kwargs):
-        if not self.validate_mutually_exclusive(**kwargs):
-            raise ValueError(
-                f"The following fields are mutually exclusive:\n{self.MUTUALLY_EXCLUSIVE}"
-            )
-        else:
-            super(BetConfiguration, self).save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if not self.validate_mutually_exclusive(**kwargs):
+    #         raise ValueError(
+    #             f"The following fields are mutually exclusive:\n{self.MUTUALLY_EXCLUSIVE}"
+    #         )
+    #     else:
+    #         super(BetConfiguration, self).save(*args, **kwargs)
 
     def create_kwargs(self):
         d = model_to_dict(self)
-        skip = ["id", "name"] + self.MUTUALLY_EXCLUSIVE
-        keys = [
-            key
-            for key in d.keys()
-            if key not in skip or (key in self.MUTUALLY_EXCLUSIVE and d[key])
-        ]
-        keys = [key for key in keys if d.get(key)]
-        return {self.CONFIG_DICT.get(key, key): d[key] for key in keys}
+        skip = ["id", "name", "mode"]  # + self.MUTUALLY_EXCLUSIVE
+        kwargs = {
+            self.CONFIG_DICT.get(key, key): value
+            for key, value in d.items()
+            if key not in skip and value
+        }
+        if self.mode:
+            kwargs[self.mode] = True
+        return kwargs
