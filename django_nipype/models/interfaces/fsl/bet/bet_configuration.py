@@ -112,7 +112,7 @@ class BetConfiguration(NodeConfiguration):
 
     def add_output_to_config(self, config: dict) -> dict:
         for output_file in self.output:
-            if output_file is not self.BRAIN:
+            if output_file != self.BRAIN:
                 trait_name = self.OUTPUT_TRAITS[output_file]
                 config[trait_name] = True
         return config

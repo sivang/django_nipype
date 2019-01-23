@@ -31,4 +31,4 @@ class BetRun(NodeRun):
             node.inputs.out_file = self.default_out_path()
         elif self.configuration.output == []:
             node.inputs.no_output = True
-        node.run()
+        return node.run()
