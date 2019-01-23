@@ -1,3 +1,4 @@
+from django.contrib.postgres.fields import ArrayField
 from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.forms.models import model_to_dict
@@ -17,6 +18,7 @@ class BetConfiguration(NodeConfiguration):
     }
 
     # Mode configuration choices
+    NORMAL = None
     ROBUST = "ROBU"
     PADDING = "PADD"
     REMOVE_EYES = "REMO"
@@ -24,7 +26,7 @@ class BetConfiguration(NodeConfiguration):
     FUNCTIONAL = "FUNC"
     REDUCE_BIAS = "REDU"
     MODE_CHOICES = (
-        (None, "Normal"),
+        (NORMAL, "Normal"),
         (ROBUST, "Robust"),
         (PADDING, "Padding"),
         (REMOVE_EYES, "Remove Eyes"),
@@ -32,15 +34,6 @@ class BetConfiguration(NodeConfiguration):
         (FUNCTIONAL, "Functional"),
         (REDUCE_BIAS, "Reduce Bias"),
     )
-
-    # MUTUALLY_EXCLUSIVE = [
-    #     "robust",
-    #     "padding",
-    #     "remove_eyes",
-    #     "surfaces",
-    #     "functional",
-    #     "reduce_bias",
-    # ]
 
     # Skull stripping configuration
     fractional_intensity_threshold = models.FloatField(
@@ -63,8 +56,11 @@ class BetConfiguration(NodeConfiguration):
     threshold_segmented = models.BooleanField(
         default=False, help_text="Apply thresholding to segmented brain image and mask"
     )
+    mode = models.CharField(max_length=4, choices=MODE_CHOICES, default=NORMAL)
 
     # Output files configuration
+
+    output_files = ArrayField(models.CharField(max_length=20), size=5)
     output_surface_outline = models.BooleanField(
         default=False, help_text="Create surface outline image"
     )
@@ -72,61 +68,25 @@ class BetConfiguration(NodeConfiguration):
         default=False, help_text="Create binary mask image"
     )
     output_skull = models.BooleanField(default=False, help_text="Create skull image")
-    no_output = models.BooleanField(
-        default=False, help_text="Don't generate segmented output"
-    )
     output_mesh_surface = models.BooleanField(
         default=False, help_text="Generate a VTK mesh brain surface"
     )
-
-    # Modes
-    mode = models.CharField(max_length=4, choices=MODE_CHOICES)
-    # robust = models.BooleanField(
-    #     default=False,
-    #     help_text="Robust brain center estimation (iterates BET several times)",
-    # )
-    # padding = models.BooleanField(
-    #     default=False,
-    #     help_text="Improve BET estimation if Field of View (FOV) is very small in Z (by temporarily padding end slices)",
-    # )
-    # remove_eyes = models.BooleanField(
-    #     default=False, help_text="Remove eye and optic nerve"
-    # )
-    # surfaces = models.BooleanField(
-    #     default=False,
-    #     help_text="Run bet2 and then betsurf to get addiotional skull and scalp surfaces (includes registration)",
-    # )
-    # # Skipped t2_guided option
-    # functional = models.BooleanField(default=False, help_text="Apply to 4D fMRI data")
-    # reduce_bias = models.BooleanField(
-    #     default=False, help_text="Bias field and neck cleanup"
-    # )
+    no_output = models.BooleanField(
+        default=False, help_text="Don't generate segmented output"
+    )
 
     class Meta:
         verbose_name_plural = "Configurations"
 
-    # def validate_mutually_exclusive(self, **kwargs):
-    #     selected = [kwargs.get(mode, True) for mode in self.MUTUALLY_EXCLUSIVE]
-    #     if sum(selected) > 1:
-    #         return False
-    #     return True
-
-    # def save(self, *args, **kwargs):
-    #     if not self.validate_mutually_exclusive(**kwargs):
-    #         raise ValueError(
-    #             f"The following fields are mutually exclusive:\n{self.MUTUALLY_EXCLUSIVE}"
-    #         )
-    #     else:
-    #         super(BetConfiguration, self).save(*args, **kwargs)
-
     def create_kwargs(self):
         d = model_to_dict(self)
-        skip = ["id", "name", "mode"]  # + self.MUTUALLY_EXCLUSIVE
+        skip = ["id", "name", "mode"]
         kwargs = {
             self.CONFIG_DICT.get(key, key): value
             for key, value in d.items()
             if key not in skip and value
         }
         if self.mode:
-            kwargs[self.mode] = True
+            trait_name = self.get_mode_display().lower()
+            kwargs[trait_name] = True
         return kwargs
