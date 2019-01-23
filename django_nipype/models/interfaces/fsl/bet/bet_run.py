@@ -27,5 +27,8 @@ class BetRun(NodeRun):
     def run(self):
         node = self.configuration.create_node()
         node.inputs.in_file = self.in_file
-        node.inputs.out_file = self.default_out_path()
+        if self.configuration.BRAIN in self.configuration.output:
+            node.inputs.out_file = self.default_out_path()
+        elif self.configuration.output == []:
+            node.inputs.no_output = True
         node.run()
