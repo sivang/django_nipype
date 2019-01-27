@@ -1,3 +1,5 @@
+import json
+
 from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.forms.models import model_to_dict
@@ -12,8 +14,6 @@ def default_output():
 
 
 class BetConfiguration(NodeConfiguration):
-
-    name = models.CharField(max_length=100, blank=True, null=True)
 
     # Skull stripping configuration
     CONFIG_DICT = {
@@ -92,9 +92,12 @@ class BetConfiguration(NodeConfiguration):
     )
 
     class Meta:
-        verbose_name_plural = "Configurations"
+        verbose_name_plural = "BET Configurations"
 
-    def get_configuration_dict(self) -> dict:
+    def __str__(self):
+        return json.dumps(self.create_kwargs(), indent=2)
+
+    def raw_dict(self) -> dict:
         d = model_to_dict(self)
         skip = ["id", "name", "mode", "output"]
         config = {
@@ -118,14 +121,16 @@ class BetConfiguration(NodeConfiguration):
         return config
 
     def create_kwargs(self) -> dict:
-        config = self.get_configuration_dict()
+        config = self.raw_dict()
         config = self.add_mode_to_config(config)
         config = self.add_output_to_config(config)
         return config
 
-    def create_bet_instance(self) -> BET:
+    def build_pipe(self) -> BET:
         return BET(**self.create_kwargs())
 
     def create_node(self) -> Node:
-        bet = self.create_bet_instance()
-        return Node(bet, name=self.name or "bet_node")
+        bet = self.build_pipe()
+        if not self.id:
+            self.save()
+        return Node(bet, name=f"bet_{self.id}_node")

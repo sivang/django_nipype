@@ -1,27 +1,27 @@
 import os
 
 from django.db import models
-from django_nipype.apps import DjangoNipypeConfig
+from django.conf import settings
 from django_nipype.models import NodeRun
 
 
-BET_RESULTS = os.path.join(DjangoNipypeConfig.RESULTS_PATH, "BET")
+BET_RESULTS = os.path.join(settings.MEDIA_ROOT, "nipype", "BET")
 
 
 class BetRun(NodeRun):
     in_file = models.FilePathField(
-        path=DjangoNipypeConfig.DB_PATH, max_length=255, match="*.nii*", recursive=True
+        path=settings.MEDIA_ROOT, max_length=255, match="*.nii*", recursive=True
     )
     configuration = models.ForeignKey(
-        "django_nipype.BetConfiguration",
-        on_delete=models.PROTECT,
-        related_name="existing_runs",
+        "django_nipype.BetConfiguration", on_delete=models.PROTECT, related_name="runs"
     )
 
     class Meta:
         verbose_name_plural = "Runs"
 
     def default_out_path(self) -> str:
+        if not self.id:
+            self.save()
         return os.path.join(BET_RESULTS, f"{self.id}.nii.gz")
 
     def run(self):
