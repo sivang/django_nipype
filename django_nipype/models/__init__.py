@@ -6,3 +6,4 @@ from .interfaces.fsl import BetResults
 from .interfaces.fsl import BetRun
 from .interfaces.fsl import FlirtConfiguration
 from .interfaces.fsl import FlirtRun
+from .interfaces.fsl import FlirtResults

@@ -3,19 +3,10 @@ import json
 from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.forms.models import model_to_dict
-from django_nipype.models.fields import ChoiceArrayField
 from django_nipype.models import NodeConfiguration
-from nipype.interfaces.fsl import BET
-from nipype.pipeline import Node
-
-
-def default_output():
-    return [BetConfiguration.BRAIN]
 
 
 class BetConfiguration(NodeConfiguration):
-
-    # Skull stripping configuration
     CONFIG_DICT = {
         "fractional_intensity_threshold": "frac",
         "head_radius": "radius",
@@ -41,7 +32,6 @@ class BetConfiguration(NodeConfiguration):
     threshold_segmented = models.BooleanField(
         default=False, help_text="Apply thresholding to segmented brain image and mask"
     )
-
     # Mode configuration choices
     NORMAL = None
     ROBUST = "ROBU"
@@ -63,43 +53,15 @@ class BetConfiguration(NodeConfiguration):
         max_length=4, choices=MODE_CHOICES, default=NORMAL, blank=True
     )
 
-    # Output files configuration
-    BRAIN = "BRN"
-    SURFACE_OUTLINE = "SRF"
-    BINARY_MASK = "MSK"
-    SKULL = "SKL"
-    MESH_SURFACE = "MSH"
-    OUTPUT_CHOICES = (
-        (BRAIN, "Brain"),
-        (SURFACE_OUTLINE, "Surface Outline"),
-        (BINARY_MASK, "Binary Mask"),
-        (SURFACES, "Surfaces"),
-        (FUNCTIONAL, "Functional"),
-    )
-    # Each possible output file has a corresponding trait in BET configuration
-    OUTPUT_TRAITS = {
-        BRAIN: "out_file",
-        SURFACE_OUTLINE: "outline",
-        BINARY_MASK: "mask",
-        SKULL: "skull",
-        MESH_SURFACE: "mesh",
-    }
-    output = ChoiceArrayField(
-        models.CharField(max_length=3, choices=OUTPUT_CHOICES),
-        size=5,
-        blank=True,
-        default=default_output,
-    )
-
     class Meta:
         verbose_name_plural = "BET Configurations"
 
     def __str__(self):
         return json.dumps(self.create_kwargs(), indent=2)
 
-    def raw_dict(self) -> dict:
+    def as_kwargs_without_mode(self) -> dict:
         d = model_to_dict(self)
-        skip = ["id", "name", "mode", "output"]
+        skip = ["id", "name", "mode"]
         config = {
             self.CONFIG_DICT.get(key, key): value
             for key, value in d.items()
@@ -107,30 +69,13 @@ class BetConfiguration(NodeConfiguration):
         }
         return config
 
-    def add_mode_to_config(self, config: dict) -> dict:
+    def add_mode_to_kwargs(self, config: dict) -> dict:
         if self.mode:
             trait_name = self.get_mode_display().lower().replace(" ", "_")
             config[trait_name] = True
         return config
 
-    def add_output_to_config(self, config: dict) -> dict:
-        for output_file in self.output:
-            if output_file != self.BRAIN:
-                trait_name = self.OUTPUT_TRAITS[output_file]
-                config[trait_name] = True
-        return config
-
     def create_kwargs(self) -> dict:
-        config = self.raw_dict()
-        config = self.add_mode_to_config(config)
-        config = self.add_output_to_config(config)
+        config = self.as_kwargs_without_mode()
+        config = self.add_mode_to_kwargs(config)
         return config
-
-    def build_pipe(self) -> BET:
-        return BET(**self.create_kwargs())
-
-    def create_node(self) -> Node:
-        bet = self.build_pipe()
-        if not self.id:
-            self.save()
-        return Node(bet, name=f"bet_{self.id}_node")

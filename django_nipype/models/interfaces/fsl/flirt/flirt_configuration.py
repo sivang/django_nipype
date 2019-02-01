@@ -3,8 +3,6 @@ import json
 from django.db import models
 from django.forms.models import model_to_dict
 from django_nipype.models import NodeConfiguration
-from nipype.interfaces.fsl import FLIRT
-from nipype.pipeline import Node
 
 
 class FlirtConfiguration(NodeConfiguration):
@@ -15,9 +13,8 @@ class FlirtConfiguration(NodeConfiguration):
         "degrees_of_freedom": "dof",
         "intensity_clamping": "no_clamp",
         "resample_blur": "no_resample_blur",
+        "log": "save_log",
     }
-
-    # Coregistration configuration
 
     # Interpolation
     TRILINEAR = "TL"
@@ -75,6 +72,7 @@ class FlirtConfiguration(NodeConfiguration):
 
     intensity_clamping = models.BooleanField(default=True)
     resample_blur = models.BooleanField(default=True)
+    log = models.BooleanField(default=True)
     # Many more FLIRT and specifically BBR fields to add
     # BBR might even be better off as a subclass
 
@@ -103,13 +101,13 @@ class FlirtConfiguration(NodeConfiguration):
 
     def fix_interpolation_kwarg(self, config: dict):
         attribute = self.CONFIG_DICT["interpolation"]
-        value = self.INTERPOLATION_CHOICES_DICT[getattr(self, "interpolation")]
+        value = self.INTERPOLATION_CHOICES_DICT[self.interpolation]
         config[attribute] = value
         return config
 
     def fix_cost_function_kwarg(self, config: dict):
         attribute = self.CONFIG_DICT["cost_function"]
-        value = self.COST_FUNCION_CHOICES_DICT[getattr(self, "cost_function")]
+        value = self.COST_FUNCION_CHOICES_DICT[self.cost_function]
         config[attribute] = value
         return config
 
@@ -119,13 +117,4 @@ class FlirtConfiguration(NodeConfiguration):
         config = self.fix_interpolation_kwarg(config)
         config = self.fix_cost_function_kwarg(config)
         return config
-
-    def build_pipe(self):
-        return FLIRT(**self.create_kwargs())
-
-    def create_node(self) -> Node:
-        flirt = self.build_pipe()
-        if not self.id:
-            self.save()
-        return Node(flirt, name=f"flirt_{self.id}_node")
 
