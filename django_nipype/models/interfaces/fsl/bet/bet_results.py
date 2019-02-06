@@ -1,5 +1,3 @@
-import os
-
 from django.conf import settings
 from django.db import models
 from django_nipype.models import NodeResults
@@ -22,6 +20,8 @@ class BetResults(NodeResults):
         path=settings.MEDIA_ROOT, match="*.vtk", recursive=True, null=True, blank=True
     )
 
+    ON_DELETE = ["out_file", "skull", "mask", "outline", "mesh"]
+
     class Meta:
         verbose_name_plural = "Results"
 
@@ -29,12 +29,3 @@ class BetResults(NodeResults):
     def brain(self):
         return self.out_file
 
-    def delete(self):
-        for output_file in ["out_file", "skull", "mask", "outline", "mesh"]:
-            path = getattr(self, output_file)
-            if path:
-                try:
-                    os.remove(path)
-                except FileNotFoundError:
-                    continue
-        super(BetResults, self).delete()

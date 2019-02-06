@@ -84,13 +84,13 @@ class BetRun(NodeRun):
                 config[trait_name] = True
         return config
 
-    def build_pipe(self) -> BET:
+    def build_command(self) -> BET:
         config = self.configuration.create_kwargs()
         config = self.add_output_to_kwargs(config)
         return BET(**config)
 
     def create_node(self) -> Node:
-        bet = self.build_pipe()
+        bet = self.build_command()
         node = Node(bet, name=f"bet_{self.id}_node")
         node.inputs.in_file = self.in_file
         node.inputs.out_file = self.default_out_path(self.BRAIN)
@@ -98,7 +98,7 @@ class BetRun(NodeRun):
         #     node.inputs.no_output = True
         return node
 
-    def create_results_instance(self):
+    def create_results_instance(self) -> BetResults:
         self.results = BetResults()
         for output_file in self.output:
             setattr(
@@ -107,6 +107,7 @@ class BetRun(NodeRun):
                 self.default_out_path(output_file),
             )
         self.results.save()
+        return self.results
 
     def run(self):
         if not self.id:
@@ -114,6 +115,7 @@ class BetRun(NodeRun):
         node = self.create_node()
         node.run()
         self.create_results_instance()
+        self.save()
         return self.results
 
     def delete(self):

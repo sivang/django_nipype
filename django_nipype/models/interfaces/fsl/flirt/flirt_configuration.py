@@ -73,6 +73,7 @@ class FlirtConfiguration(NodeConfiguration):
     intensity_clamping = models.BooleanField(default=True)
     resample_blur = models.BooleanField(default=True)
     log = models.BooleanField(default=True)
+    matrix = models.BooleanField(default=True)
     # Many more FLIRT and specifically BBR fields to add
     # BBR might even be better off as a subclass
 
@@ -84,7 +85,7 @@ class FlirtConfiguration(NodeConfiguration):
 
     def raw_dict(self) -> dict:
         d = model_to_dict(self)
-        skip = ["id", "name", "intensity_clamping", "resample_blur"]
+        skip = ["id", "name", "intensity_clamping", "resample_blur", "matrix"]
         config = {
             self.CONFIG_DICT.get(key, key): value
             for key, value in d.items()
