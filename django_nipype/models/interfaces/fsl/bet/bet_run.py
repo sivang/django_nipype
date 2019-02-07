@@ -110,12 +110,13 @@ class BetRun(NodeRun):
         return self.results
 
     def run(self):
-        if not self.id:
+        if not self.results:
+            if not self.id:
+                self.save()
+            node = self.create_node()
+            node.run()
+            self.create_results_instance()
             self.save()
-        node = self.create_node()
-        node.run()
-        self.create_results_instance()
-        self.save()
         return self.results
 
     def delete(self):
