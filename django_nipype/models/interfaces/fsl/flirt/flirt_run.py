@@ -52,19 +52,20 @@ class FlirtRun(NodeRun):
         self.results.save()
 
     def run(self):
-        if not self.id:
+        if not self.results:
+            if not self.id:
+                self.save()
+            node = self.create_node()
+            node.inputs.in_file = self.in_file
+            node.inputs.reference = self.reference
+            node.inputs.out_file = self.default_out_path()
+            if self.configuration.log:
+                node.inputs.out_log = self.default_out_path("log")
+            if self.configuration.matrix:
+                node.inputs.out_matrix_file = self.default_out_path("mat")
+            node.run()
+            self.create_results_instance()
             self.save()
-        node = self.create_node()
-        node.inputs.in_file = self.in_file
-        node.inputs.reference = self.reference
-        node.inputs.out_file = self.default_out_path()
-        if self.configuration.log:
-            node.inputs.out_log = self.default_out_path("log")
-        if self.configuration.matrix:
-            node.inputs.out_matrix_file = self.default_out_path("mat")
-        node.run()
-        self.create_results_instance()
-        self.save()
         return self.results
 
     def delete(self):

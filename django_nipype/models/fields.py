@@ -22,3 +22,7 @@ class ChoiceArrayField(ArrayField):
         # care for it.
         # pylint:disable=bad-super-call
         return super(ArrayField, self).formfield(**defaults)
+
+    def db_type(self, connection):
+        return "stringarray"
+
