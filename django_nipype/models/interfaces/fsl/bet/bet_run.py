@@ -2,11 +2,14 @@ import os
 
 from django.db import models
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django_nipype.models import NodeRun
 from django_nipype.models.fields import ChoiceArrayField
 from django_nipype.models.interfaces.fsl.bet import BetResults
+from django_nipype.utils import jasonable_dict
 from nipype.interfaces.fsl import BET
-from nipype.pipeline import Node
+
+# from nipype.interfaces.base import InterfaceResult, Bunch
 
 BET_RESULTS = os.path.join(settings.MEDIA_ROOT, "nipype", "BET")
 
@@ -57,10 +60,11 @@ class BetRun(NodeRun):
         blank=True,
         default=default_output,
     )
+    log = JSONField(blank=True, null=True)
 
     results = models.OneToOneField(
         "django_nipype.BetResults",
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="results_for",
         null=True,
     )
@@ -84,38 +88,55 @@ class BetRun(NodeRun):
                 config[trait_name] = True
         return config
 
-    def build_command(self) -> BET:
-        config = self.configuration.create_kwargs()
-        config = self.add_output_to_kwargs(config)
-        return BET(**config)
+    def add_output_to_interface_instance(self, interface: BET) -> BET:
+        interface.inputs.out_file = self.default_out_path(self.BRAIN)
+        for output_file in self.output:
+            if output_file != self.BRAIN:
+                trait_name = self.OUTPUT_TRAIT_NAMES[output_file]
+                setattr(interface.inputs, trait_name, True)
+        return interface
 
-    def create_node(self) -> Node:
-        bet = self.build_command()
-        node = Node(bet, name=f"bet_{self.id}_node")
-        node.inputs.in_file = self.in_file
-        node.inputs.out_file = self.default_out_path(self.BRAIN)
-        # if self.output == []:
-        #     node.inputs.no_output = True
-        return node
+    def create_interface(self) -> BET:
+        bet = self.configuration.create_interface()
+        bet.inputs.in_file = self.in_file
+        if self.output:
+            return self.add_output_to_interface_instance(bet)
+        else:
+            bet.inputs.no_output = True
+            return bet
+
+    # def build_command(self) -> BET:
+    #     config = self.configuration.create_kwargs()
+    #     config = self.add_output_to_kwargs(config)
+    #     return BET(**config)
+
+    # def create_node(self) -> Node:
+    #     bet = self.build_command()
+    #     node = Node(bet, name=f"bet_{self.id}_node")
+    #     node.inputs.in_file = self.in_file
+    #     node.inputs.out_file = self.default_out_path(self.BRAIN)
+    #     # if self.output == []:
+    #     #     node.inputs.no_output = True
+    #     return node
+
+    def get_output_dict(self) -> dict:
+        return {
+            self.OUTPUT_TRAIT_NAMES[output_file]: self.default_out_path(output_file)
+            for output_file in self.output
+        }
 
     def create_results_instance(self) -> BetResults:
-        self.results = BetResults()
-        for output_file in self.output:
-            setattr(
-                self.results,
-                self.OUTPUT_TRAIT_NAMES[output_file],
-                self.default_out_path(output_file),
-            )
-        self.results.save()
-        return self.results
+        outputs = self.get_output_dict()
+        return BetResults.objects.create(**outputs)
 
     def run(self):
         if not self.results:
             if not self.id:
                 self.save()
-            node = self.create_node()
-            node.run()
-            self.create_results_instance()
+            interface = self.create_interface()
+            results = interface.run()
+            self.log = jasonable_dict(results.runtime.dictcopy())
+            self.results = self.create_results_instance()
             self.save()
         return self.results
 

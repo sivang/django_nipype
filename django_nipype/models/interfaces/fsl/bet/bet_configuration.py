@@ -4,6 +4,7 @@ from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.forms.models import model_to_dict
 from django_nipype.models import NodeConfiguration
+from nipype.interfaces.fsl import BET
 
 
 class BetConfiguration(NodeConfiguration):
@@ -59,9 +60,9 @@ class BetConfiguration(NodeConfiguration):
     def __str__(self):
         return json.dumps(self.create_kwargs(), indent=2)
 
-    def as_kwargs_without_mode(self) -> dict:
+    def create_kwargs_without_mode(self) -> dict:
         d = model_to_dict(self)
-        skip = ["id", "name", "mode"]
+        skip = ["id", "name", "mode", "title", "description", "created", "modified"]
         config = {
             self.CONFIG_DICT.get(key, key): value
             for key, value in d.items()
@@ -76,6 +77,10 @@ class BetConfiguration(NodeConfiguration):
         return config
 
     def create_kwargs(self) -> dict:
-        config = self.as_kwargs_without_mode()
+        config = self.create_kwargs_without_mode()
         config = self.add_mode_to_kwargs(config)
         return config
+
+    def create_interface(self) -> BET:
+        config = self.create_kwargs()
+        return BET(**config)

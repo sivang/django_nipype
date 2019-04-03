@@ -43,13 +43,12 @@ class FlirtRun(NodeRun):
         return Node(flirt, name=f"flirt_{self.id}_node")
 
     def create_results_instance(self):
-        self.results = FlirtResults()
-        self.results.out_file = self.default_out_path()
+        kwargs = {"out_file": self.default_out_path()}
         if self.configuration.log:
-            self.results.log = self.default_out_path("log")
+            kwargs["log"] = self.default_out_path("log")
         if self.configuration.matrix:
-            self.results.matrix = self.default_out_path("mat")
-        self.results.save()
+            kwargs["matrix"] = self.default_out_path("mat")
+        return FlirtResults.objects.create(**kwargs)
 
     def run(self):
         if not self.results:
@@ -64,7 +63,7 @@ class FlirtRun(NodeRun):
             if self.configuration.matrix:
                 node.inputs.out_matrix_file = self.default_out_path("mat")
             node.run()
-            self.create_results_instance()
+            self.results = self.create_results_instance()
             self.save()
         return self.results
 

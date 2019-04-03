@@ -1,11 +1,9 @@
 import os
-from django.db import models
+
+from django_extensions.db.models import TimeStampedModel
 
 
-class NodeResults(models.Model):
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
-
+class NodeResults(TimeStampedModel):
     class Meta:
         abstract = True
 

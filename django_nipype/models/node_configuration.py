@@ -1,13 +1,9 @@
-from django.db import models
+from django_extensions.db.models import TimeStampedModel, TitleDescriptionModel
 from nipype.interfaces.base import CommandLine
 from nipype.pipeline import Node
 
 
-class NodeConfiguration(models.Model):
-    name = models.CharField(max_length=100, blank=True, null=True)
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
-
+class NodeConfiguration(TimeStampedModel, TitleDescriptionModel):
     class Meta:
         abstract = True
 

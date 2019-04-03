@@ -1,13 +1,10 @@
-from django.db import models
+from django_extensions.db.models import TimeStampedModel
 from django_nipype.models import NodeResults
 from nipype.interfaces.base import CommandLine
 from nipype.pipeline import Node
 
 
-class NodeRun(models.Model):
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
-
+class NodeRun(TimeStampedModel):
     class Meta:
         abstract = True
 
