@@ -1,9 +1,9 @@
 from django.conf import settings
 from django.db import models
-from django_nipype.models import NodeResults
+from django_nipype.models.vertex import VertexOutput
 
 
-class FlirtResults(NodeResults):
+class FlirtResults(VertexOutput):
     out_file = models.FilePathField(
         settings.MEDIA_ROOT, match="*.nii*", recursive=True, null=True, blank=True
     )

@@ -4,7 +4,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 
-class ConnectionDestination(models.Model):
+class PipeSource(models.Model):
     field_names = ArrayField(
         models.CharField(max_length=55), size=5, blank=True, null=True
     )

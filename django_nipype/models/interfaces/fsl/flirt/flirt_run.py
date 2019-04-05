@@ -2,7 +2,7 @@ import os
 
 from django.db import models
 from django.conf import settings
-from django_nipype.models import NodeRun
+from django_nipype.models.vertex import Vertex
 from django_nipype.models.interfaces.fsl.flirt.flirt_results import FlirtResults
 from nipype.interfaces.fsl import FLIRT
 from nipype.pipeline import Node
@@ -10,7 +10,7 @@ from nipype.pipeline import Node
 FLIRT_RESULTS = os.path.join(settings.MEDIA_ROOT, "nipype", "FLIRT")
 
 
-class FlirtRun(NodeRun):
+class FlirtRun(Vertex):
     in_file = models.FilePathField(
         path=settings.MEDIA_ROOT, max_length=255, match="*.nii*", recursive=True
     )
@@ -22,10 +22,10 @@ class FlirtRun(NodeRun):
         on_delete=models.PROTECT,
         related_name="runs",
     )
-    results = models.OneToOneField(
+    output = models.OneToOneField(
         "django_nipype.FlirtResults",
         on_delete=models.PROTECT,
-        related_name="results_for",
+        related_name="output_of",
         null=True,
     )
 

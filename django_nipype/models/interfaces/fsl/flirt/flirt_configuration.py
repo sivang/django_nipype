@@ -2,11 +2,10 @@ import json
 
 from django.db import models
 from django.forms.models import model_to_dict
-from django_nipype.models import NodeConfiguration
+from django_nipype.models.vertex import VertexConfiguration
 
 
-class FlirtConfiguration(NodeConfiguration):
-
+class FlirtConfiguration(VertexConfiguration):
     CONFIG_DICT = {
         "interpolation": "interp",
         "cost_function": "cost",

@@ -3,131 +3,43 @@ import os
 from django.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
-from django_nipype.models import NodeRun
-from django_nipype.models.fields import ChoiceArrayField
-from django_nipype.models.interfaces.fsl.bet import BetResults
+from django_nipype.models.interfaces.fsl.bet.choices import Output
+from django_nipype.models.vertex import Vertex
+from django_nipype.models.interfaces.fsl.bet import BetOutput
 from django_nipype.utils import jasonable_dict
 from nipype.interfaces.fsl import BET
-
-# from nipype.interfaces.base import InterfaceResult, Bunch
-
-BET_RESULTS = os.path.join(settings.MEDIA_ROOT, "nipype", "BET")
 
 
 def default_output():
     return [BetRun.BRAIN]
 
 
-class BetRun(NodeRun):
-    in_file = models.FilePathField(
-        path=settings.MEDIA_ROOT, max_length=255, match="*.nii*", recursive=True
+class BetRun(Vertex):
+    inputs = models.ForeignKey(
+        "django_nipype.BetInput", on_delete=models.CASCADE, related_name="runs"
     )
     configuration = models.ForeignKey(
         "django_nipype.BetConfiguration", on_delete=models.PROTECT, related_name="runs"
     )
-
-    # Output files configuration
-    BRAIN = "BRN"
-    SURFACE_OUTLINE = "SRF"
-    MASK = "MSK"
-    SKULL = "SKL"
-    MESH_SURFACE = "MSH"
-    OUTPUT_CHOICES = (
-        (BRAIN, "Brain"),
-        (SURFACE_OUTLINE, "Surface Outline"),
-        (MASK, "Binary Mask"),
-        (SKULL, "Skull"),
-        (MESH_SURFACE, "Mesh Surface"),
-    )
-    # Each possible output file has a corresponding trait in BET configuration
-    OUTPUT_TRAIT_NAMES = {
-        BRAIN: "out_file",
-        SURFACE_OUTLINE: "outline",
-        MASK: "mask",
-        SKULL: "skull",
-        MESH_SURFACE: "mesh",
-    }
-    OUTPUT_SUFFIX = {
-        BRAIN: "",
-        SURFACE_OUTLINE: "_overlay",
-        MASK: "_mask",
-        SKULL: "_skull",
-        MESH_SURFACE: "_mesh",
-    }
-    output = ChoiceArrayField(
-        models.CharField(max_length=3, choices=OUTPUT_CHOICES),
-        size=5,
-        blank=True,
-        default=default_output,
-    )
-    log = JSONField(blank=True, null=True)
-
-    results = models.OneToOneField(
-        "django_nipype.BetResults",
+    output = models.OneToOneField(
+        "django_nipype.BetOutput",
         on_delete=models.CASCADE,
-        related_name="results_for",
+        related_name="output_of",
         null=True,
     )
 
+    log = JSONField(blank=True, null=True)
+
     class Meta:
-        verbose_name_plural = "Runs"
+        verbose_name_plural = "FSL Brain Extraction Runs"
 
-    def default_out_path(self, output_file=BRAIN) -> str:
-        if output_file == self.MESH_SURFACE:
-            extension = "vtk"
-        else:
-            extension = "nii.gz"
-        return os.path.join(
-            BET_RESULTS, f"{self.id}{self.OUTPUT_SUFFIX[output_file]}.{extension}"
-        )
-
-    def add_output_to_kwargs(self, config: dict) -> dict:
-        for output_file in self.output:
-            if output_file != self.BRAIN:
-                trait_name = self.OUTPUT_TRAIT_NAMES[output_file]
-                config[trait_name] = True
-        return config
-
-    def add_output_to_interface_instance(self, interface: BET) -> BET:
-        interface.inputs.out_file = self.default_out_path(self.BRAIN)
-        for output_file in self.output:
-            if output_file != self.BRAIN:
-                trait_name = self.OUTPUT_TRAIT_NAMES[output_file]
-                setattr(interface.inputs, trait_name, True)
+    def set_interface_input(self, interface: BET) -> BET:
+        interface.inputs.in_file = self.inputs.nifti
         return interface
 
-    def create_interface(self) -> BET:
-        bet = self.configuration.create_interface()
-        bet.inputs.in_file = self.in_file
-        if self.output:
-            return self.add_output_to_interface_instance(bet)
-        else:
-            bet.inputs.no_output = True
-            return bet
-
-    # def build_command(self) -> BET:
-    #     config = self.configuration.create_kwargs()
-    #     config = self.add_output_to_kwargs(config)
-    #     return BET(**config)
-
-    # def create_node(self) -> Node:
-    #     bet = self.build_command()
-    #     node = Node(bet, name=f"bet_{self.id}_node")
-    #     node.inputs.in_file = self.in_file
-    #     node.inputs.out_file = self.default_out_path(self.BRAIN)
-    #     # if self.output == []:
-    #     #     node.inputs.no_output = True
-    #     return node
-
-    def get_output_dict(self) -> dict:
-        return {
-            self.OUTPUT_TRAIT_NAMES[output_file]: self.default_out_path(output_file)
-            for output_file in self.output
-        }
-
-    def create_results_instance(self) -> BetResults:
+    def create_results_instance(self) -> BetOutput:
         outputs = self.get_output_dict()
-        return BetResults.objects.create(**outputs)
+        return BetOutput.objects.create(**outputs)
 
     def run(self):
         if not self.results:
