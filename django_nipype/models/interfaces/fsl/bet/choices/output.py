@@ -3,7 +3,7 @@ from django_nipype.models.choice_enum import ChoiceEnum
 
 class Output(ChoiceEnum):
     BRN = "Brain"
-    SRF = "Surface Outline"
+    OUT = "Surface Outline"
+    SRF = "Surfaces"
     MSK = "Mask"
-    SKL = "Skull"
     MSH = "Mesh Surface"

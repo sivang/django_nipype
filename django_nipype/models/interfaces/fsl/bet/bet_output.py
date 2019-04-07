@@ -1,56 +1,40 @@
-import os
-
-from django.conf import settings
 from django.db import models
-from django_nipype.models.interfaces.fsl.bet import BetRun
-from django_nipype.models.vertex import VertexOutput
-
-# from nipype.interfaces.fsl import BET
+from django_nipype.models.interfaces.fsl.bet.choices import Output
+from django_nipype.models.vertex import VertexFileOutput
 
 
-class BetOutput(VertexOutput):
-    brain = models.FilePathField(
-        path=settings.MEDIA_ROOT, match="*.nii*", recursive=True, null=True, blank=True
-    )
-    skull = models.FilePathField(
-        path=settings.MEDIA_ROOT, match="*.nii*", recursive=True, null=True, blank=True
-    )
-    mask = models.FilePathField(
-        path=settings.MEDIA_ROOT, match="*.nii*", recursive=True, null=True, blank=True
-    )
-    outline = models.FilePathField(
-        path=settings.MEDIA_ROOT, match="*.nii*", recursive=True, null=True, blank=True
-    )
-    mesh = models.FilePathField(
-        path=settings.MEDIA_ROOT, match="*.vtk", recursive=True, null=True, blank=True
+class BetOutput(VertexFileOutput):
+    output_type = models.CharField(max_length=3, choices=Output.choices())
+    run = models.ForeignKey(
+        "django_nipype.BetRun", on_delete=models.CASCADE, related_name="output_set"
     )
 
-    DEFAULT = ["brain"]
-    ON_DELETE = ["brain", "skull", "mask", "outline", "mesh"]
-    CHOICES = [
-        ("brain", "Brain"),
-        ("skull", "Skull"),
-        ("mask", "Mask"),
-        ("outline", "Surface Outline"),
-        ("mesh", "Mesh Surface"),
-    ]
     SUFFIX = {
-        "brain": "",
-        "outline": "_overlay",
-        "mask": "_mask",
-        "skull": "_skull",
-        "mesh": "_mesh",
+        Output.MSH.name: "_mesh",
+        Output.MSK.name: "_mask",
+        Output.OUT.name: "_overlay",
+        Output.SRF.name: [
+            "_inskull_mask",
+            "_inskull_mesh",
+            "_outskull_mask",
+            "_outskull_mesh",
+            "_outskin_mask",
+            "_outskin_mesh",
+            "_skull_mask",
+        ],
     }
+    DEFAULT_EXTENSION = "nii.gz"
+    EXTENSION = {Output.MSH.name: "vtk"}
+    INTERFACE_CONFIGURATION_KEYS = {
+        Output.BRN.name: "out_file",
+        Output.MSH.name: "mesh",
+        Output.MSK.name: "mask",
+        Output.OUT.name: "outline",
+        Output.SRF.name: "surfaces",
+    }
+    SHORT_DESCRIPTIONS = {choice.name: choice.value for choice in Output}
 
-    class Meta:
-        verbose_name_plural = "FSL BET Output"
-
-    def get_default_file_name(self, field: models.FilePathField) -> str:
-        suffix = self.SUFFIX.get(field.name, "_" + field.name)
-        extension = "vtk" if field.name == "mesh" else "nii.gz"
-        return f"{self.output_of.id}{suffix}.{extension}"
-
-    def get_default_path(self, field: models.FilePathField) -> str:
-        vertex_path = self.output_of.get_path()
-        file_name = self.get_default_file_name(field)
-        return os.path.join(vertex_path, file_name)
+    def get_interface_configuration(self) -> dict:
+        if self.output_type == Output.BRN.name:
+            return {self.INTERFACE_CONFIGURATION_KEYS.get(self.output_type): self.path}
+        return super().get_interface_configuration()

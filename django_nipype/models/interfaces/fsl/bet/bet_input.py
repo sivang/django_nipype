@@ -1,9 +1,8 @@
 from django.db import models
-from django_nipype.models.vertex import VertexInput
+from django_nipype.models.vertex import VertexFileInput
 
 
-class BetInput(VertexInput):
-    nifti = models.ForeignKey(
-        "mri.NIfTI", on_delete=models.CASCADE, related_name="as_bet_input"
+class BetInput(VertexFileInput):
+    run = models.ForeignKey(
+        "django_nipype.BetRun", on_delete=models.PROTECT, related_name="input_set"
     )
-
