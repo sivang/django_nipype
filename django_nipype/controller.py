@@ -12,6 +12,7 @@ class RunAnalysis:
     INPUT_KEYS = ["in_file"]
     OUTPUT_KEYS = {}
     BASE_OUTPUT_KEY = "out_file"
+    DEFAULTS = {}
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -35,15 +36,15 @@ class RunAnalysis:
         elif of_type == "output":
             return list(self.OUTPUT_KEYS.keys())
         elif not of_type or of_type == "run":
-            return [
-                key
-                for key in self.kwargs
-                if key not in self.INPUT_KEYS and key not in self.OUTPUT_KEYS
-            ]
+            return list(self.DEFAULTS.keys())
 
     def get_configuration(self, of_type: str = "") -> dict:
         keys = self.get_keys(of_type=of_type)
-        return {key: self.kwargs.get(key) for key in keys if key in self.kwargs}
+        return {
+            key: self.kwargs.get(key, self.DEFAULTS.get(key))
+            for key in keys
+            if key in self.kwargs or key in self.DEFAULTS
+        }
 
     def get_or_create_run(self) -> Run:
         return Run.objects.get_or_create(
@@ -95,7 +96,8 @@ class RunAnalysis:
 
     def configure_interface(self, interface: BaseInterface) -> None:
         for key, value in self.run_configuration.items():
-            setattr(interface.inputs, key, value)
+            if value != self.DEFAULTS.get(key):
+                setattr(interface.inputs, key, value)
 
     def configure_interface_output(self, interface: BaseInterface) -> None:
         destination = self.set_output_destination(interface)
@@ -195,6 +197,13 @@ class RunBET(RunAnalysis):
             "outskin_mesh_file",
             "skull_mask_file",
         ],
+    }
+    DEFAULTS = {
+        "frac": 0.5,
+        "vertical_gradient": 0,
+        "radius": 0,
+        "center": [],
+        "threshold": False,
     }
 
     def __init__(self, **kwargs):
