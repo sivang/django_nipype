@@ -9,7 +9,7 @@ def is_jsonable(value):
         return False
 
 
-def jasonable_dict(arg_dict: dict) -> dict:
+def jsonable_dict(arg_dict: dict) -> dict:
     jsonable = dict()
     for key, value in arg_dict.items():
         if is_jsonable(value):
