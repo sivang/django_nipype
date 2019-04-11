@@ -59,17 +59,22 @@ class RunAnalysis:
             raise NotImplementedError("Failed to instantiate analysis interface!")
 
     def has_missing_output(self) -> bool:
-        try:
-            return any(
-                [
-                    not os.path.isfile(
-                        self.run_instance.output.get(self.OUTPUT_KEYS[output], "")
-                    )
-                    for output in self.output_configuration
-                ]
-            )
-        except AttributeError:
+        if not self.run_instance.output:
             return True
+        for output in self.output_configuration:
+            output_key = self.OUTPUT_KEYS[output]
+            if isinstance(output_key, str):
+                existing_output = self.run_instance.output.get(output_key, "")
+                if not os.path.isfile(existing_output):
+                    return True
+            elif isinstance(output_key, list):
+                output_paths = [self.run_instance.output.get(key) for key in output_key]
+                existing_output = [os.path.isfile(path) for path in output_paths]
+                return not all(existing_output)
+            else:
+                raise ValueError(
+                    f"Invalid output key configuration ({output_key})! Value must be of type str or list."
+                )
 
     def get_missing_output(self) -> dict:
         try:
@@ -84,15 +89,25 @@ class RunAnalysis:
         except AttributeError:
             return self.output_configuration
 
+    def configure_interface_input(self, interface: BaseInterface) -> None:
+        for key, value in self.input_configuration.items():
+            setattr(interface.inputs, key, value)
+
+    def configure_interface(self, interface: BaseInterface) -> None:
+        for key, value in self.run_configuration.items():
+            setattr(interface.inputs, key, value)
+
     def configure_interface_output(self, interface: BaseInterface) -> None:
-        self.set_output_destination(interface)
+        destination = self.set_output_destination(interface)
         missing_output = self.get_missing_output()
+        if missing_output and self.BASE_OUTPUT_KEY not in missing_output:
+            missing_output[self.BASE_OUTPUT_KEY] = destination
         for key, value in missing_output.items():
             setattr(interface.inputs, key, value)
 
     def apply_configuration(self, interface: BaseInterface) -> None:
-        for key, value in self.kwargs.items():
-            setattr(interface.inputs, key, value)
+        self.configure_interface_input(interface)
+        self.configure_interface(interface)
         self.configure_interface_output(interface)
 
     def create_configured_interface_instance(self) -> BaseInterface:
@@ -116,9 +131,10 @@ class RunAnalysis:
         base_dir = self.create_default_output_directory()
         return os.path.join(base_dir, str(self.run_instance.id))
 
-    def set_output_destination(self, interface: BaseInterface) -> None:
+    def set_output_destination(self, interface: BaseInterface) -> str:
         destination = self.get_default_output_destination()
         setattr(interface.inputs, self.BASE_OUTPUT_KEY, destination)
+        return destination
 
     def run_interface(self):
         instance = self.create_configured_interface_instance()
@@ -167,10 +183,10 @@ class RunBET(RunAnalysis):
     INTERFACE = BET
     OUTPUT_KEYS = {
         "mask": "mask_file",
-        "mesh": "mesh_file",
+        "mesh": "meshfile",
         "outline": "outline_file",
         "surfaces": [
-            "mesh_file",
+            "meshfile",
             "inskull_mask_file",
             "inskull_mesh_file",
             "outskull_mask_file",
