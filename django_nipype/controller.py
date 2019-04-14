@@ -4,7 +4,7 @@ from django_analysis.models import Analysis, Run
 from django_nipype.apps import DjangoNipypeConfig
 from django_nipype.utils import jsonable_dict
 from nipype.interfaces.base import BaseInterface, InterfaceResult
-from nipype.interfaces.fsl import BET
+from nipype.interfaces.fsl import BET, FLIRT
 
 
 class RunAnalysis:
@@ -58,6 +58,9 @@ class RunAnalysis:
             return self.INTERFACE()
         except TypeError:
             raise NotImplementedError("Failed to instantiate analysis interface!")
+
+    def get_interface_default(self, interface: BaseInterface, field: str):
+        return interface.input_spec.class_traits()[field]
 
     def has_missing_output(self) -> bool:
         if not self.run_instance.output:
@@ -208,4 +211,32 @@ class RunBET(RunAnalysis):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+
+class RunFLIRT(RunAnalysis):
+    INTERFACE = FLIRT
+    INPUT_KEYS = ["in_file", "reference", "in_matrix_file"]
+    OUTPUT_KEYS = {"out_matrix_file": "out_matrix_file", "out_log": "out_log"}
+    DEFAULTS = {
+        "apply_xfm": False,
+        "apply_isoxfm": 0.0,
+        "datatype": "char",
+        "cost": "mutualinfo",
+        "cost_func": "mutualinfo",
+        "uses_qform": False,
+        "display_init": False,
+        "angle_rep": "quaternion",
+        "interp": "trilinear",
+        "sinc_width": 0,
+        "sinc_window": "rectangular",
+        "bins": 0,
+        "dof": 0,
+        "no_resample": False,
+        "force_scaling": False,
+        "min_sampling": 0.0,
+        "padding_size": 0,
+        "searchr_x": [],
+        "searchr_y": [],
+        "searchr_z": [],
+    }
 
