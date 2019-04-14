@@ -1,6 +1,4 @@
-import os
-
-from nipype.interfaces.base import BaseInterface
+from nipype.interfaces.base import BaseInterface, InterfaceResult
 from nipype.interfaces.fsl import BET
 from .configuration_parser import ConfigurationParser
 
@@ -15,6 +13,7 @@ class NipypeInterface:
 
     def __init__(self, base: BaseInterface, **kwargs):
         self.base = base
+        self._base_instance = base()
         self.configuration = ConfigurationParser(self, kwargs)
 
     def get_default_analysis_configuration(self) -> dict:
@@ -25,7 +24,7 @@ class NipypeInterface:
         }
 
     def get_output_key(self, output_configuration_key: str) -> str:
-        return self.OUTPUT_KEYS.get(output_configuration_key)
+        return self.OUTPUT_KEYS.get(output_configuration_key, output_configuration_key)
 
     def get_expected_output_configuration_keys(self) -> list:
         return list(
@@ -45,9 +44,36 @@ class NipypeInterface:
             for key in self.get_expected_output_configuration_keys()
         ]
 
+    def configure_base_instance(self, output_configuration: dict = None) -> None:
+        input_configuration = self.configuration.input_configuration
+        analysis_configuration = self.configuration.analysis_configuration
+        output_configuration = (
+            output_configuration or self.configuration.output_configuration
+        )
+        configuration = {
+            **input_configuration,
+            **analysis_configuration,
+            **output_configuration,
+        }
+        for key, value in configuration.items():
+            setattr(self.base_instance.inputs, key, value)
+
+    def run(self, destination: str, output_configuration: dict = {}) -> InterfaceResult:
+        self.configure_base_instance(output_configuration=output_configuration)
+        setattr(
+            self.base_instance.inputs, self.BASE_OUTPUT_CONFIGURATION_KEY, destination
+        )
+        return self.base_instance.run()
+
     @property
     def analysis_name(self) -> str:
         return self.base.__name__
+
+    @property
+    def base_instance(self) -> BaseInterface:
+        if not isinstance(self._base_instance, BaseInterface):
+            self._base_instance = self.base()
+        return self._base_instance
 
     @property
     def base_traits(self) -> dict:
